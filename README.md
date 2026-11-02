@@ -246,3 +246,9 @@ Do not upload API keys, passwords, private documents, or other sensitive informa
 **Sushmita Kundarnad**
 
 Aspiring Generative AI Developer | Python | RAG | LLMs | Vector Databases
+
+## 🌐 Live Demo
+
+🚀 **Try the application here** : https://enterprise-knowledge-copilot-hgtgsr9kh2wlpn9ddj64pz.streamlit.app/
+
+Upload your PDF or TXT documents, ask questions in natural language, and explore how Retrieval-Augmented Generation (RAG) helps retrieve relevant information from your documents.
