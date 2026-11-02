@@ -1,0 +1,203 @@
+# 🧠 Enterprise Knowledge Copilot
+
+An AI-powered document question-answering application that helps users search, understand, and retrieve information from their documents using **Retrieval-Augmented Generation (RAG)**.
+
+The application allows users to upload PDF and TXT files, index their content, and ask questions in natural language. It retrieves relevant information from the uploaded documents and generates context-based answers using a locally running Large Language Model (LLM).
+
+## 🚀 Features
+
+* **📄 Document Upload:** Upload PDF and TXT documents.
+* **📚 Document Indexing:** Extract document text, split it into smaller chunks, and store it in a vector database.
+* **🔍 Semantic Search:** Retrieve relevant document content based on the meaning of a question.
+* **🤖 AI-Powered Answers:** Generate answers using retrieved document context.
+* **📌 Source References:** Display source filenames and page information when available.
+* **💬 Interactive Chat:** Ask follow-up questions through a Streamlit interface.
+* **📝 Suggested Questions:** Get suggested questions to explore document content.
+* **🔒 Local LLM Inference:** Use Ollama to run the language model locally instead of requiring a paid hosted LLM API.
+* **🗂️ Session-Based Documents:** Organize document retrieval by chat session when supported by the application configuration.
+
+## 🛠️ Tech Stack
+
+| Technology                           | Purpose                                      |
+| ------------------------------------ | -------------------------------------------- |
+| Python                               | Core application logic                       |
+| Streamlit                            | Interactive web interface                    |
+| Ollama                               | Run language and embedding models locally    |
+| Llama 3.2 (3B)                       | Generate natural-language answers            |
+| Nomic Embed Text                     | Convert text into vector embeddings          |
+| ChromaDB                             | Store and retrieve document embeddings       |
+| PyMuPDF                              | Extract text from PDF files                  |
+| Retrieval-Augmented Generation (RAG) | Ground answers in retrieved document content |
+
+## 🏗️ System Architecture
+
+```text
+                 ┌─────────────────────────┐
+                 │       User Interface    │
+                 │        Streamlit        │
+                 └────────────┬────────────┘
+                              │
+                  Upload Documents / Ask
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │    Document Processing  │
+                 │      PDF / TXT          │
+                 └────────────┬────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │     Text Extraction     │
+                 │       PyMuPDF           │
+                 └────────────┬────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │     Text Chunking       │
+                 │ Split into small pieces │
+                 └────────────┬────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │    Embedding Model      │
+                 │    Nomic Embed Text     │
+                 └────────────┬────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │     ChromaDB            │
+                 │   Vector Database       │
+                 └────────────┬────────────┘
+                              │
+                       User Question
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │   Semantic Retrieval    │
+                 │ Find Relevant Chunks    │
+                 └────────────┬────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │      Llama 3.2 (3B)     │
+                 │ Generate Context-Based  │
+                 │         Answer          │
+                 └────────────┬────────────┘
+                              │
+                              ▼
+                 ┌─────────────────────────┐
+                 │ Answer + Source Details│
+                 │ Displayed in Streamlit  │
+                 └─────────────────────────┘
+```
+
+## 🔄 How It Works
+
+### 1. Upload Documents
+
+The user uploads PDF or TXT documents through the Streamlit interface.
+
+### 2. Extract Text
+
+The application extracts text from the uploaded files. PyMuPDF is used to process PDF documents.
+
+### 3. Split Text into Chunks
+
+The extracted text is divided into smaller sections so that relevant information can be retrieved efficiently.
+
+### 4. Generate Embeddings
+
+The Nomic Embed Text model converts text chunks into numerical vector representations that capture semantic meaning.
+
+### 5. Store Embeddings
+
+ChromaDB stores the embeddings alongside document text and metadata, such as filenames and page numbers.
+
+### 6. Retrieve Relevant Information
+
+When the user asks a question, the application searches for document chunks that are semantically similar to the question.
+
+### 7. Generate an Answer
+
+The retrieved content is supplied to Llama 3.2 (3B) through Ollama. The model uses this context to generate a natural-language response.
+
+### 8. Display Results
+
+The answer is displayed in the Streamlit interface, along with source information when available.
+
+## 💻 Installation and Setup
+
+### Prerequisites
+
+Install the following before running the project:
+
+* Python 3.10 or a compatible version
+* Git
+* Ollama
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/enterprise-knowledge-copilot.git
+cd enterprise-knowledge-copilot
+```
+
+Replace `YOUR_USERNAME` with your GitHub username and use your actual repository name.
+
+### Step 2: Create a Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+Activate it on Windows:
+
+```bash
+venv\Scripts\activate
+```
+
+### Step 3: Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 4: Install the Ollama Models
+
+Make sure Ollama is installed and running. Then open a terminal and run:
+
+```bash
+ollama pull llama3.2:3b
+ollama pull nomic-embed-text
+```
+
+These commands download the models required by the application.
+
+### Step 5: Start the Application
+
+Run the following command from the project folder:
+
+```bash
+streamlit run app.py
+```
+
+Streamlit will display a local URL in the terminal. Open that URL in your browser to use the application.
+
+## 📁 Project Structure
+
+```text
+Enterprise-Knowledge-Copilot/
+│
+├── app.py              # Streamlit user interface and application flow
+├── rag.py              # Document processing, embeddings, retrieval, and RAG logic
+├── requirements.txt    # Python dependencies
+├── README.md           # Project documentation
+├── .gitignore          # Files excluded from Git
+└── chroma_db/           # Local vector database, if configured
+```
+
+The `chroma_db/` directory may be created automatically when the application initializes its persistent vector store.
+
+## 🧠 What Is RAG?
+
+**Retrieval-Augmented Gene**
