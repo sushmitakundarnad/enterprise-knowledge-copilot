@@ -138,7 +138,7 @@ Install the following before running the project:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/enterprise-knowledge-copilot.git
+git clone https://github.com/sushmitakundarnad/enterprise-knowledge-copilot.git
 cd enterprise-knowledge-copilot
 ```
 
