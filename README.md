@@ -142,8 +142,6 @@ git clone https://github.com/sushmitakundarnad/enterprise-knowledge-copilot.git
 cd enterprise-knowledge-copilot
 ```
 
-Replace `YOUR_USERNAME` with your GitHub username and use your actual repository name.
-
 ### Step 2: Create a Virtual Environment
 
 ```bash
@@ -200,4 +198,51 @@ The `chroma_db/` directory may be created automatically when the application ini
 
 ## 🧠 What Is RAG?
 
-**Retrieval-Augmented Gene**
+**Retrieval-Augmented Generation (RAG)** is a technique that combines information retrieval with generative AI.
+
+Instead of asking an AI model to answer a question using only its pre-trained knowledge, RAG retrieves relevant information from a supplied knowledge source and uses that information to generate an answer.
+
+In this project:
+
+* **Retrieval:** ChromaDB helps find relevant document chunks.
+* **Augmentation:** The retrieved chunks provide context for the question.
+* **Generation:** Llama 3.2 generates a natural-language answer using the provided context.
+
+This approach can help make answers more relevant to the uploaded documents, although the model can still make mistakes.
+
+## 🎯 Use Cases
+
+* Searching internal company documentation
+* Understanding policies and procedures
+* Finding information in reports and manuals
+* Exploring technical documentation
+* Asking questions about PDF-based knowledge resources
+* Building a foundation for enterprise knowledge assistants
+
+## 🔮 Future Improvements
+
+* Support DOCX and additional document formats.
+* Add OCR for scanned PDFs.
+* Improve source citations with page-level references and text excerpts.
+* Add user authentication and access controls.
+* Support persistent chat history.
+* Add document management and deletion.
+* Improve retrieval using reranking and hybrid search.
+* Add evaluation tools to measure retrieval and answer quality.
+* Deploy a public demo using a compatible hosted inference solution.
+
+## ⚠️ Deployment Notes
+
+This project uses Ollama for local model inference. **A standard Streamlit Community Cloud deployment cannot automatically access Ollama running on your personal computer.**
+
+To deploy the application publicly, configure an inference service that the deployed application can reach, or host the application and Ollama in an appropriately configured environment.
+
+ChromaDB persistence on a hosted platform also depends on its storage configuration. Do not assume locally stored documents or indexes will survive restarts on an ephemeral deployment.
+
+Do not upload API keys, passwords, private documents, or other sensitive information to GitHub.
+
+## 👨‍💻 Author
+
+**Sushmita Kundarnad**
+
+Aspiring Generative AI Developer | Python | RAG | LLMs | Vector Databases
