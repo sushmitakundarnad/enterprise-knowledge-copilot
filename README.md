@@ -1,5 +1,14 @@
 # 🧠 Enterprise Knowledge Copilot
 
+## 🌐 Live Demo
+
+🚀 **Try the application:** https://enterprise-knowledge-copilot-hgtgsr9kh2wlpn9ddj64pz.streamlit.app/
+
+Explore the application by uploading PDF or TXT documents, asking questions in natural language, and getting AI-generated answers based on the document content using Retrieval-Augmented Generation (RAG).
+
+**🔗 Tech Stack:** Python | Streamlit | Ollama | Llama 3.2 | ChromaDB | RAG
+
+
 An AI-powered document question-answering application that helps users search, understand, and retrieve information from their documents using **Retrieval-Augmented Generation (RAG)**.
 
 The application allows users to upload PDF and TXT files, index their content, and ask questions in natural language. It retrieves relevant information from the uploaded documents and generates context-based answers using a locally running Large Language Model (LLM).
@@ -246,9 +255,3 @@ Do not upload API keys, passwords, private documents, or other sensitive informa
 **Sushmita Kundarnad**
 
 Aspiring Generative AI Developer | Python | RAG | LLMs | Vector Databases
-
-## 🌐 Live Demo
-
-🚀 **Try the application here** : https://enterprise-knowledge-copilot-hgtgsr9kh2wlpn9ddj64pz.streamlit.app/
-
-Upload your PDF or TXT documents, ask questions in natural language, and explore how Retrieval-Augmented Generation (RAG) helps retrieve relevant information from your documents.
