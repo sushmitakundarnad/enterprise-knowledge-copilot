@@ -1,3 +1,4 @@
+
 import uuid
 from collections import defaultdict
 
@@ -6,10 +7,9 @@ import streamlit as st
 from rag import (
     ingest_file,
     answer_question,
-    generate_suggested_questions,
-    get_chat_document_count
+    get_chat_index_summary,
+    preview_file_chunks
 )
-
 
 # ==========================================
 # PAGE CONFIGURATION
@@ -21,7 +21,6 @@ st.set_page_config(
     layout="wide"
 )
 
-
 # ==========================================
 # SESSION STATE
 # ==========================================
@@ -32,11 +31,7 @@ if "chat_id" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "suggestions" not in st.session_state:
-    st.session_state.suggestions = None
-
 chat_id = st.session_state.chat_id
-
 
 # ==========================================
 # MIDNIGHT BLUE UI
@@ -106,7 +101,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
 # ==========================================
 # HEADER AND NEW CHAT
 # ==========================================
@@ -124,16 +118,11 @@ with right:
     if st.button("＋ New Chat", use_container_width=True):
         st.session_state.chat_id = uuid.uuid4().hex
         st.session_state.messages = []
-        st.session_state.suggestions = None
-        st.session_state.pop("pending_question", None)
         st.rerun()
 
 st.divider()
 
-
-# Refresh chat ID after header actions
 chat_id = st.session_state.chat_id
-
 
 # ==========================================
 # UPLOAD AND INDEX DOCUMENTS
@@ -148,6 +137,26 @@ with st.expander("📂 Upload Documents", expanded=False):
         key=f"uploader_{chat_id}"
     )
 
+    if uploaded_files:
+        st.markdown("### Selected documents")
+
+        for file in uploaded_files:
+            try:
+                chunks = preview_file_chunks(
+                    file.name,
+                    file.getvalue()
+                )
+
+                st.caption(
+                    f"📄 {file.name} — approximately "
+                    f"{chunks} text chunks"
+                )
+
+            except Exception as error:
+                st.warning(
+                    f"Could not preview {file.name}: {error}"
+                )
+
     if st.button(
         "Index Documents",
         key=f"index_{chat_id}",
@@ -160,15 +169,13 @@ with st.expander("📂 Upload Documents", expanded=False):
         else:
             successful = 0
             total_files = len(uploaded_files)
-
             progress = st.progress(0)
 
             for index, file in enumerate(uploaded_files):
-
                 st.write(f"Processing: **{file.name}**")
 
                 try:
-                    chunk_count = ingest_file(
+                    result = ingest_file(
                         filename=file.name,
                         file_bytes=file.getvalue(),
                         session_id=chat_id
@@ -176,7 +183,7 @@ with st.expander("📂 Upload Documents", expanded=False):
 
                     st.success(
                         f"✅ {file.name} indexed successfully. "
-                        f"Chunks created: {chunk_count}"
+                        f"Chunks created: {result['chunks_created']}"
                     )
 
                     successful += 1
@@ -190,34 +197,19 @@ with st.expander("📂 Upload Documents", expanded=False):
 
             if successful:
                 st.session_state.messages = []
-                st.session_state.suggestions = None
 
                 st.success(
-                    f"Indexing complete: {successful} of "
-                    f"{total_files} file(s) indexed."
+                    f"Successfully indexed {successful} "
+                    f"of {total_files} file(s)."
                 )
 
-                st.rerun()
 
 
 # ==========================================
-# CURRENT CHAT DOCUMENT COUNT
-# ==========================================
-
-try:
-    document_count = get_chat_document_count(chat_id)
-
-except Exception as error:
-    st.error(f"Could not read indexed documents: {error}")
-    document_count = 0
-
-
-# ==========================================
-# SOURCE DISPLAY
+# DISPLAY SOURCE REFERENCES
 # ==========================================
 
 def display_sources(sources):
-
     grouped = defaultdict(set)
 
     for source in sources:
@@ -225,7 +217,6 @@ def display_sources(sources):
 
     if grouped:
         with st.expander("📚 View Sources"):
-
             for filename, pages in sorted(grouped.items()):
                 st.markdown(f"📄 **{filename}**")
 
@@ -235,13 +226,11 @@ def display_sources(sources):
 
                 st.caption(f"Pages: {page_numbers}")
 
-
 # ==========================================
 # WELCOME SCREEN
 # ==========================================
 
 if not st.session_state.messages:
-
     st.markdown("""
     <div class="hero">
         <h1>What would you like to know?</h1>
@@ -252,80 +241,33 @@ if not st.session_state.messages:
     </div>
     """, unsafe_allow_html=True)
 
-    if document_count == 0:
-
+    if not st.session_state.messages and not st.session_state.get("documents_indexed", False):
         st.info(
             "This chat has no indexed documents yet. "
             "Open Upload Documents to get started."
         )
-
     else:
-
-        if st.session_state.suggestions is None:
-
-            with st.spinner("Generating suggested questions..."):
-                st.session_state.suggestions = (
-                    generate_suggested_questions(
-                        number=4,
-                        session_id=chat_id
-                    )
-                )
-
-        questions = st.session_state.suggestions or []
-
-        if questions:
-            st.markdown("### 💡 Suggested questions")
-
-            for index in range(0, len(questions), 2):
-
-                columns = st.columns(2)
-
-                for offset, column in enumerate(columns):
-
-                    question_index = index + offset
-
-                    if question_index < len(questions):
-
-                        with column:
-
-                            if st.button(
-                                questions[question_index],
-                                key=(
-                                    f"suggestion_{chat_id}_"
-                                    f"{question_index}"
-                                ),
-                                use_container_width=True
-                            ):
-                                st.session_state.pending_question = (
-                                    questions[question_index]
-                                )
-                                st.rerun()
-
+        st.caption(
+            "Your documents are ready. Type a question below "
+            "to get started."
+        )
 
 # ==========================================
 # DISPLAY CHAT HISTORY
 # ==========================================
 
 for message in st.session_state.messages:
-
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
         if message["role"] == "assistant":
             display_sources(message.get("sources", []))
 
-
 # ==========================================
 # CHAT INPUT
 # ==========================================
 
 question = st.chat_input("Ask about your documents...")
-
-if question:
-    st.session_state.pop("pending_question", None)
-else:
-    question = st.session_state.pop("pending_question", None)
-
 
 # ==========================================
 # GENERATE ANSWER
@@ -342,10 +284,8 @@ if question:
         st.markdown(question)
 
     with st.chat_message("assistant"):
-
         try:
             with st.spinner("Searching your documents..."):
-
                 answer, sources = answer_question(
                     question=question,
                     session_id=chat_id
@@ -361,7 +301,6 @@ if question:
             })
 
         except Exception as error:
-
             st.error(f"Answer generation failed: {error}")
 
             st.session_state.messages.append({
@@ -372,7 +311,6 @@ if question:
                 ),
                 "sources": []
             })
-
 
 # ==========================================
 # FOOTER
