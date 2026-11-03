@@ -7,7 +7,6 @@ import streamlit as st
 from rag import (
     ingest_file,
     answer_question,
-    get_chat_index_summary,
     preview_file_chunks
 )
 
@@ -137,19 +136,20 @@ with st.expander("📂 Upload Documents", expanded=False):
         key=f"uploader_{chat_id}"
     )
 
+    # Show the estimated chunk count inside the uploader.
     if uploaded_files:
         st.markdown("### Selected documents")
 
         for file in uploaded_files:
             try:
-                chunks = preview_file_chunks(
+                chunk_count = preview_file_chunks(
                     file.name,
                     file.getvalue()
                 )
 
                 st.caption(
                     f"📄 {file.name} — approximately "
-                    f"{chunks} text chunks"
+                    f"{chunk_count} text chunks"
                 )
 
             except Exception as error:
@@ -175,7 +175,7 @@ with st.expander("📂 Upload Documents", expanded=False):
                 st.write(f"Processing: **{file.name}**")
 
                 try:
-                    result = ingest_file(
+                    chunks_created = ingest_file(
                         filename=file.name,
                         file_bytes=file.getvalue(),
                         session_id=chat_id
@@ -183,7 +183,7 @@ with st.expander("📂 Upload Documents", expanded=False):
 
                     st.success(
                         f"✅ {file.name} indexed successfully. "
-                        f"Chunks created: {result['chunks_created']}"
+                        f"Chunks created: {chunks_created}"
                     )
 
                     successful += 1
@@ -199,14 +199,32 @@ with st.expander("📂 Upload Documents", expanded=False):
                 st.session_state.messages = []
 
                 st.success(
-                    f"Successfully indexed {successful} "
-                    f"of {total_files} file(s)."
+                    f"Indexing complete: {successful} of "
+                    f"{total_files} file(s) indexed."
                 )
 
+# ==========================================
+# WELCOME SCREEN
+# ==========================================
 
+if not st.session_state.messages:
+    st.markdown("""
+    <div class="hero">
+        <h1>What would you like to know?</h1>
+        <p>
+        Upload your documents and ask questions.
+        Your AI assistant will find answers from your files.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.caption(
+        "Upload your documents, click Index Documents, "
+        "and type a question below to get started."
+    )
 
 # ==========================================
-# DISPLAY SOURCE REFERENCES
+# DISPLAY CHAT HISTORY
 # ==========================================
 
 def display_sources(sources):
@@ -226,36 +244,6 @@ def display_sources(sources):
 
                 st.caption(f"Pages: {page_numbers}")
 
-# ==========================================
-# WELCOME SCREEN
-# ==========================================
-
-if not st.session_state.messages:
-    st.markdown("""
-    <div class="hero">
-        <h1>What would you like to know?</h1>
-        <p>
-        Upload your documents and ask questions.
-        Your AI assistant will find answers from your files.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    if not st.session_state.messages and not st.session_state.get("documents_indexed", False):
-        st.info(
-            "This chat has no indexed documents yet. "
-            "Open Upload Documents to get started."
-        )
-    else:
-        st.caption(
-            "Your documents are ready. Type a question below "
-            "to get started."
-        )
-
-# ==========================================
-# DISPLAY CHAT HISTORY
-# ==========================================
-
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
@@ -274,7 +262,6 @@ question = st.chat_input("Ask about your documents...")
 # ==========================================
 
 if question:
-
     st.session_state.messages.append({
         "role": "user",
         "content": question

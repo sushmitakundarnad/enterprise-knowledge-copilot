@@ -73,57 +73,7 @@ def embed_texts(texts):
     return response["embeddings"]
 
 # ==========================================
-# GET INDEXED RECORDS FOR ONE CHAT
-# ==========================================
-
-def get_chat_records(session_id):
-    records = collection.get(
-        include=["documents", "metadatas"]
-    )
-
-    matching_ids = []
-    matching_documents = []
-    matching_metadatas = []
-
-    for record_id, document, metadata in zip(
-        records.get("ids") or [],
-        records.get("documents") or [],
-        records.get("metadatas") or []
-    ):
-        if metadata and metadata.get("session_id") == session_id:
-            matching_ids.append(record_id)
-            matching_documents.append(document)
-            matching_metadatas.append(metadata)
-
-    return {
-        "ids": matching_ids,
-        "documents": matching_documents,
-        "metadatas": matching_metadatas
-    }
-
-# ==========================================
-# COUNT DOCUMENTS AND CHUNKS
-# ==========================================
-
-def get_chat_index_summary(session_id):
-    records = get_chat_records(session_id)
-
-    filenames = {
-        metadata.get("source")
-        for metadata in records["metadatas"]
-        if metadata.get("source")
-    }
-
-    return {
-        "files": len(filenames),
-        "chunks": len(records["ids"])
-    }
-
-def get_chat_document_count(session_id):
-    return get_chat_index_summary(session_id)["chunks"]
-
-# ==========================================
-# PREVIEW CHUNK COUNT
+# PREVIEW CHUNK COUNT BEFORE INDEXING
 # ==========================================
 
 def preview_file_chunks(filename, file_bytes):
@@ -135,7 +85,7 @@ def preview_file_chunks(filename, file_bytes):
     )
 
 # ==========================================
-# INDEX AN UPLOADED FILE
+# INDEX A PDF OR TXT FILE
 # ==========================================
 
 def ingest_file(filename, file_bytes, session_id="default"):
@@ -162,11 +112,11 @@ def ingest_file(filename, file_bytes, session_id="default"):
                 f"{page_number}:{chunk_number}:{chunk}"
             )
 
-            ids.append(
-                hashlib.sha256(
-                    unique_text.encode("utf-8")
-                ).hexdigest()
-            )
+            chunk_id = hashlib.sha256(
+                unique_text.encode("utf-8")
+            ).hexdigest()
+
+            ids.append(chunk_id)
 
     if not documents:
         raise ValueError(
@@ -174,7 +124,7 @@ def ingest_file(filename, file_bytes, session_id="default"):
             "Scanned PDFs may require OCR."
         )
 
-    # Generate embeddings in batches.
+    # Generate embeddings before changing the existing index.
     embeddings = []
 
     try:
@@ -184,7 +134,7 @@ def ingest_file(filename, file_bytes, session_id="default"):
 
     except Exception as error:
         raise RuntimeError(
-            f"Could not generate embeddings. Check that Ollama "
+            f"Could not generate embeddings. Make sure Ollama "
             f"is running and '{EMBED_MODEL}' is installed. "
             f"Details: {error}"
         ) from error
@@ -194,21 +144,29 @@ def ingest_file(filename, file_bytes, session_id="default"):
             "The number of embeddings does not match the chunks."
         )
 
-    # Remove an older version of the same file in this chat.
-    existing = get_chat_records(session_id)
+    # Find an older version of this file in the same chat.
+    existing = collection.get(
+        include=["metadatas"]
+    )
 
-    old_ids = [
-        record_id
-        for record_id, metadata in zip(
-            existing["ids"], existing["metadatas"]
-        )
-        if metadata.get("source") == filename
-    ]
+    old_ids = []
 
+    for record_id, metadata in zip(
+        existing.get("ids") or [],
+        existing.get("metadatas") or []
+    ):
+        if (
+            metadata
+            and metadata.get("session_id") == session_id
+            and metadata.get("source") == filename
+        ):
+            old_ids.append(record_id)
+
+    # Replace the old version of this file.
     if old_ids:
         collection.delete(ids=old_ids)
 
-    # Save the new chunks and embeddings.
+    # Store the new chunks and embeddings.
     collection.add(
         ids=ids,
         documents=documents,
@@ -216,44 +174,49 @@ def ingest_file(filename, file_bytes, session_id="default"):
         embeddings=embeddings
     )
 
-    summary = get_chat_index_summary(session_id)
-
-    return {
-        "chunks_created": len(documents),
-        "total_chat_chunks": summary["chunks"],
-        "total_chat_files": summary["files"]
-    }
+    return len(documents)
 
 # ==========================================
 # RETRIEVE RELEVANT CHUNKS
 # ==========================================
 
 def retrieve(question, session_id="default", top_k=4):
-    records = get_chat_records(session_id)
+    # Check whether this chat has indexed text.
+    existing = collection.get(
+        include=["metadatas"]
+    )
 
-    if not records["documents"]:
+    session_ids = [
+        record_id
+        for record_id, metadata in zip(
+            existing.get("ids") or [],
+            existing.get("metadatas") or []
+        )
+        if metadata and metadata.get("session_id") == session_id
+    ]
+
+    if not session_ids:
         return []
 
+    # Embed the question.
     question_embedding = embed_texts([question])[0]
 
-    # Retrieve only chunks from the current chat.
+    # Search for relevant chunks from this chat only.
     results = collection.query(
         query_embeddings=[question_embedding],
-        n_results=min(top_k, len(records["ids"])),
+        n_results=min(top_k, len(session_ids)),
         where={"session_id": session_id},
         include=["documents", "metadatas", "distances"]
     )
 
-    result_documents = results.get("documents") or [[]]
-    result_metadatas = results.get("metadatas") or [[]]
-    result_distances = results.get("distances") or [[]]
+    documents = results.get("documents") or [[]]
+    metadatas = results.get("metadatas") or [[]]
+    distances = results.get("distances") or [[]]
 
     passages = []
 
     for document, metadata, distance in zip(
-        result_documents[0],
-        result_metadatas[0],
-        result_distances[0]
+        documents[0], metadatas[0], distances[0]
     ):
         passages.append({
             "text": document,
@@ -265,7 +228,7 @@ def retrieve(question, session_id="default", top_k=4):
     return passages
 
 # ==========================================
-# GENERATE ANSWER
+# ANSWER QUESTIONS USING RAG
 # ==========================================
 
 def answer_question(question, session_id="default"):
@@ -298,8 +261,9 @@ def answer_question(question, session_id="default"):
                     "content": (
                         "You are an Enterprise Knowledge Copilot. "
                         "Answer using only the supplied document context. "
-                        "Do not invent facts. If the answer is not in the "
-                        "context, clearly say that it was not found. "
+                        "Do not invent facts. If the answer is not in "
+                        "the context, clearly say that the information "
+                        "was not found in the provided documents. "
                         "Use simple, clear English."
                     )
                 },
@@ -318,7 +282,7 @@ def answer_question(question, session_id="default"):
 
     except Exception as error:
         raise RuntimeError(
-            f"Could not generate an answer. Check that Ollama "
+            f"Could not generate an answer. Make sure Ollama "
             f"is running and '{LLM_MODEL}' is installed. "
             f"Details: {error}"
         ) from error
