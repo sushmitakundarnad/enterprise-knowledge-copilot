@@ -1,14 +1,12 @@
 
+import re
 import uuid
 from collections import defaultdict
 
+import fitz
 import streamlit as st
 
-from rag import (
-    ingest_file,
-    answer_question,
-    preview_file_chunks
-)
+from rag import ingest_file, answer_question
 
 # ==========================================
 # PAGE CONFIGURATION
@@ -31,6 +29,28 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 chat_id = st.session_state.chat_id
+
+# ==========================================
+# CHUNK PREVIEW - KEPT INSIDE APP.PY
+# ==========================================
+
+def estimate_chunks(filename, file_bytes):
+    if filename.lower().endswith(".pdf"):
+        with fitz.open(stream=file_bytes, filetype="pdf") as pdf:
+            text = " ".join(page.get_text() for page in pdf)
+
+    elif filename.lower().endswith(".txt"):
+        text = file_bytes.decode("utf-8", errors="replace")
+
+    else:
+        return 0
+
+    text = re.sub(r"\s+", " ", text).strip()
+
+    if not text:
+        return 0
+
+    return len(range(0, len(text), 850))
 
 # ==========================================
 # MIDNIGHT BLUE UI
@@ -136,20 +156,16 @@ with st.expander("📂 Upload Documents", expanded=False):
         key=f"uploader_{chat_id}"
     )
 
-    # Show the estimated chunk count inside the uploader.
     if uploaded_files:
         st.markdown("### Selected documents")
 
         for file in uploaded_files:
             try:
-                chunk_count = preview_file_chunks(
-                    file.name,
-                    file.getvalue()
-                )
+                count = estimate_chunks(file.name, file.getvalue())
 
                 st.caption(
                     f"📄 {file.name} — approximately "
-                    f"{chunk_count} text chunks"
+                    f"{count} text chunks"
                 )
 
             except Exception as error:
@@ -162,7 +178,6 @@ with st.expander("📂 Upload Documents", expanded=False):
         key=f"index_{chat_id}",
         use_container_width=True
     ):
-
         if not uploaded_files:
             st.warning("Please upload at least one PDF or TXT file.")
 
@@ -175,7 +190,7 @@ with st.expander("📂 Upload Documents", expanded=False):
                 st.write(f"Processing: **{file.name}**")
 
                 try:
-                    chunks_created = ingest_file(
+                    count = ingest_file(
                         filename=file.name,
                         file_bytes=file.getvalue(),
                         session_id=chat_id
@@ -183,9 +198,8 @@ with st.expander("📂 Upload Documents", expanded=False):
 
                     st.success(
                         f"✅ {file.name} indexed successfully. "
-                        f"Chunks created: {chunks_created}"
+                        f"Chunks created: {count}"
                     )
-
                     successful += 1
 
                 except Exception as error:
@@ -197,7 +211,6 @@ with st.expander("📂 Upload Documents", expanded=False):
 
             if successful:
                 st.session_state.messages = []
-
                 st.success(
                     f"Indexing complete: {successful} of "
                     f"{total_files} file(s) indexed."
@@ -224,7 +237,7 @@ if not st.session_state.messages:
     )
 
 # ==========================================
-# DISPLAY CHAT HISTORY
+# SOURCE REFERENCES
 # ==========================================
 
 def display_sources(sources):
@@ -237,12 +250,14 @@ def display_sources(sources):
         with st.expander("📚 View Sources"):
             for filename, pages in sorted(grouped.items()):
                 st.markdown(f"📄 **{filename}**")
-
                 page_numbers = ", ".join(
                     str(page) for page in sorted(pages)
                 )
-
                 st.caption(f"Pages: {page_numbers}")
+
+# ==========================================
+# CHAT HISTORY
+# ==========================================
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -258,7 +273,7 @@ for message in st.session_state.messages:
 question = st.chat_input("Ask about your documents...")
 
 # ==========================================
-# GENERATE ANSWER
+# ANSWER QUESTIONS
 # ==========================================
 
 if question:

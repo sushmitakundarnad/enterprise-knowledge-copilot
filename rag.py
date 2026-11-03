@@ -1,15 +1,11 @@
 
 import hashlib
-import re
 
 import chromadb
 import fitz
 import ollama
 
-# ==========================================
-# CONFIGURATION
-# ==========================================
-
+# Configuration
 LLM_MODEL = "llama3.2:3b"
 EMBED_MODEL = "nomic-embed-text"
 
@@ -20,16 +16,14 @@ collection = client.get_or_create_collection(
     metadata={"hnsw:space": "cosine"}
 )
 
-# ==========================================
-# EXTRACT TEXT FROM PDF OR TXT
-# ==========================================
-
 def extract_pages(filename, file_bytes):
+    """Extract text from a PDF or TXT file."""
+
     if filename.lower().endswith(".pdf"):
         with fitz.open(stream=file_bytes, filetype="pdf") as pdf:
             return [
-                (page_number + 1, page.get_text())
-                for page_number, page in enumerate(pdf)
+                (number + 1, page.get_text())
+                for number, page in enumerate(pdf)
             ]
 
     if filename.lower().endswith(".txt"):
@@ -39,12 +33,10 @@ def extract_pages(filename, file_bytes):
 
     raise ValueError("Only PDF and TXT files are supported.")
 
-# ==========================================
-# SPLIT TEXT INTO CHUNKS
-# ==========================================
-
 def split_text(text, chunk_size=1000, overlap=150):
-    text = re.sub(r"\s+", " ", text).strip()
+    """Split text into overlapping chunks."""
+
+    text = " ".join(text.split())
 
     if not text:
         return []
@@ -57,38 +49,22 @@ def split_text(text, chunk_size=1000, overlap=150):
         if text[start:start + chunk_size].strip()
     ]
 
-# ==========================================
-# GENERATE EMBEDDINGS
-# ==========================================
-
 def embed_texts(texts):
+    """Create embeddings with Ollama."""
+
     if not texts:
         return []
 
-    response = ollama.embed(
+    result = ollama.embed(
         model=EMBED_MODEL,
         input=texts
     )
 
-    return response["embeddings"]
-
-# ==========================================
-# PREVIEW CHUNK COUNT BEFORE INDEXING
-# ==========================================
-
-def preview_file_chunks(filename, file_bytes):
-    pages = extract_pages(filename, file_bytes)
-
-    return sum(
-        len(split_text(page_text))
-        for _, page_text in pages
-    )
-
-# ==========================================
-# INDEX A PDF OR TXT FILE
-# ==========================================
+    return result["embeddings"]
 
 def ingest_file(filename, file_bytes, session_id="default"):
+    """Extract, embed, and index an uploaded document."""
+
     pages = extract_pages(filename, file_bytes)
 
     documents = []
@@ -112,19 +88,19 @@ def ingest_file(filename, file_bytes, session_id="default"):
                 f"{page_number}:{chunk_number}:{chunk}"
             )
 
-            chunk_id = hashlib.sha256(
-                unique_text.encode("utf-8")
-            ).hexdigest()
-
-            ids.append(chunk_id)
+            ids.append(
+                hashlib.sha256(
+                    unique_text.encode("utf-8")
+                ).hexdigest()
+            )
 
     if not documents:
         raise ValueError(
-            "No readable text was found in this file. "
+            "No readable text found in this file. "
             "Scanned PDFs may require OCR."
         )
 
-    # Generate embeddings before changing the existing index.
+    # Generate embeddings before replacing an older indexed copy.
     embeddings = []
 
     try:
@@ -134,21 +110,16 @@ def ingest_file(filename, file_bytes, session_id="default"):
 
     except Exception as error:
         raise RuntimeError(
-            f"Could not generate embeddings. Make sure Ollama "
-            f"is running and '{EMBED_MODEL}' is installed. "
+            f"Embedding generation failed. Check that Ollama is "
+            f"available and the '{EMBED_MODEL}' model is installed. "
             f"Details: {error}"
         ) from error
 
     if len(embeddings) != len(documents):
-        raise RuntimeError(
-            "The number of embeddings does not match the chunks."
-        )
+        raise RuntimeError("Embedding count does not match chunk count.")
 
-    # Find an older version of this file in the same chat.
-    existing = collection.get(
-        include=["metadatas"]
-    )
-
+    # Remove the previous version of this file in this chat.
+    existing = collection.get(include=["metadatas"])
     old_ids = []
 
     for record_id, metadata in zip(
@@ -162,11 +133,9 @@ def ingest_file(filename, file_bytes, session_id="default"):
         ):
             old_ids.append(record_id)
 
-    # Replace the old version of this file.
     if old_ids:
         collection.delete(ids=old_ids)
 
-    # Store the new chunks and embeddings.
     collection.add(
         ids=ids,
         documents=documents,
@@ -176,75 +145,44 @@ def ingest_file(filename, file_bytes, session_id="default"):
 
     return len(documents)
 
-# ==========================================
-# RETRIEVE RELEVANT CHUNKS
-# ==========================================
-
-def retrieve(question, session_id="default", top_k=4):
-    # Check whether this chat has indexed text.
-    existing = collection.get(
-        include=["metadatas"]
-    )
-
-    session_ids = [
-        record_id
-        for record_id, metadata in zip(
-            existing.get("ids") or [],
-            existing.get("metadatas") or []
-        )
-        if metadata and metadata.get("session_id") == session_id
-    ]
-
-    if not session_ids:
-        return []
-
-    # Embed the question.
-    question_embedding = embed_texts([question])[0]
-
-    # Search for relevant chunks from this chat only.
-    results = collection.query(
-        query_embeddings=[question_embedding],
-        n_results=min(top_k, len(session_ids)),
-        where={"session_id": session_id},
-        include=["documents", "metadatas", "distances"]
-    )
-
-    documents = results.get("documents") or [[]]
-    metadatas = results.get("metadatas") or [[]]
-    distances = results.get("distances") or [[]]
-
-    passages = []
-
-    for document, metadata, distance in zip(
-        documents[0], metadatas[0], distances[0]
-    ):
-        passages.append({
-            "text": document,
-            "source": metadata.get("source", "Unknown"),
-            "page": metadata.get("page", 1),
-            "similarity": 1 - distance
-        })
-
-    return passages
-
-# ==========================================
-# ANSWER QUESTIONS USING RAG
-# ==========================================
-
 def answer_question(question, session_id="default"):
-    passages = retrieve(
-        question=question,
-        session_id=session_id,
-        top_k=4
-    )
+    """Retrieve relevant chunks and generate an answer."""
 
-    if not passages:
+    try:
+        question_embedding = embed_texts([question])[0]
+
+        results = collection.query(
+            query_embeddings=[question_embedding],
+            n_results=4,
+            where={"session_id": session_id},
+            include=["documents", "metadatas", "distances"]
+        )
+
+    except Exception as error:
+        raise RuntimeError(
+            "Could not search indexed documents. "
+            f"Details: {error}"
+        ) from error
+
+    documents = (results.get("documents") or [[]])[0]
+    metadatas = (results.get("metadatas") or [[]])[0]
+
+    if not documents:
         return (
             "No documents have been indexed in this chat. "
             "Please upload a PDF or TXT file and click "
             "'Index Documents'.",
             []
         )
+
+    passages = []
+
+    for document, metadata in zip(documents, metadatas):
+        passages.append({
+            "text": document,
+            "source": metadata.get("source", "Unknown"),
+            "page": metadata.get("page", 1)
+        })
 
     context = "\n\n".join(
         f"Source: {item['source']}, Page: {item['page']}\n"
@@ -261,10 +199,9 @@ def answer_question(question, session_id="default"):
                     "content": (
                         "You are an Enterprise Knowledge Copilot. "
                         "Answer using only the supplied document context. "
-                        "Do not invent facts. If the answer is not in "
-                        "the context, clearly say that the information "
-                        "was not found in the provided documents. "
-                        "Use simple, clear English."
+                        "Do not invent facts. If the answer is not present, "
+                        "say that it was not found in the provided documents. "
+                        "Use clear, simple English."
                     )
                 },
                 {
@@ -282,9 +219,8 @@ def answer_question(question, session_id="default"):
 
     except Exception as error:
         raise RuntimeError(
-            f"Could not generate an answer. Make sure Ollama "
-            f"is running and '{LLM_MODEL}' is installed. "
-            f"Details: {error}"
+            f"Could not generate an answer. Check that Ollama is "
+            f"available and '{LLM_MODEL}' is installed. Details: {error}"
         ) from error
 
     return answer, passages

@@ -2,4 +2,3 @@ streamlit
 ollama
 chromadb
 pymupdf
-pytest
