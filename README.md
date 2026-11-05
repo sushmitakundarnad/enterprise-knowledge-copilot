@@ -1,196 +1,483 @@
 # 📚 Enterprise Knowledge Copilot
 
-An AI-powered document assistant that allows users to upload PDF and TXT files and ask questions about their content. It uses **Retrieval-Augmented Generation (RAG)** to retrieve relevant document text and generate answers using a locally running Large Language Model (LLM) through Ollama.
+An AI-powered document question-answering application built with **Python, Streamlit, Gemini API, ChromaDB, and Retrieval-Augmented Generation (RAG)**.
+
+The application allows users to upload PDF or TXT documents, index their content, and ask questions. Relevant document chunks are retrieved using semantic search and provided to a Gemini language model to generate context-aware answers with source references.
 
 ## 🚀 Live Demo
 
-**[Try Enterprise Knowledge Copilot](https://enterprise-knowledge-copilot-hgtgsr9kh2wlpn9ddj64pz.streamlit.app/)**
+**Streamlit App:**  
+https://enterprise-knowledge-copilot-hgtgsr9kh2wlpn9ddj64pz.streamlit.app/
 
-> Note: The deployed interface may be available even when document indexing or question answering is unavailable. The current implementation uses Ollama, which must be accessible to the running application.
+**GitHub Repository:**  
+https://github.com/sushmitakundarnad/enterprise-knowledge-copilot
+
+---
 
 ## ✨ Features
 
-* **Document Upload:** Upload PDF and TXT files.
-* **Text Extraction:** Extract readable text from uploaded documents.
-* **Text Chunking:** Split document content into smaller chunks for retrieval.
-* **Document Indexing:** Generate embeddings and store document chunks in ChromaDB.
-* **AI Question Answering:** Ask questions about indexed documents using RAG.
-* **Semantic Retrieval:** Retrieve relevant text based on the user's question.
-* **Source References:** Display source filenames and page numbers with answers.
-* **Interactive UI:** Use a Streamlit interface with a midnight-blue theme.
-* **Local LLM Support:** Generate responses using Ollama.
+- 📄 Upload PDF and TXT documents
+- 🔍 Extract text from uploaded documents
+- ✂️ Split documents into smaller text chunks
+- 🧠 Generate semantic embeddings using Gemini
+- 🗄️ Store document embeddings in ChromaDB
+- 🔎 Retrieve relevant document chunks using vector similarity search
+- 🤖 Generate answers using Gemini
+- 📚 Display source document names and page numbers
+- 💬 Interactive chat-based interface
+- 🔄 New Chat functionality for starting a fresh document session
+- ☁️ Designed for cloud deployment using Gemini API
+
+---
 
 ## 🛠️ Tech Stack
 
-| Technology       | Purpose                                      |
-| ---------------- | -------------------------------------------- |
-| Python           | Core application logic                       |
-| Streamlit        | User interface                               |
-| Ollama           | Local LLM inference and embedding generation |
-| Llama 3.2 (3B)   | Answer generation                            |
-| Nomic Embed Text | Text embeddings                              |
-| ChromaDB         | Vector storage and retrieval                 |
-| PyMuPDF          | PDF text extraction                          |
-| RAG              | Document-grounded question answering         |
+| Technology | Purpose |
+| --- | --- |
+| Python | Core application development |
+| Streamlit | Web application and user interface |
+| Gemini API | Embeddings and answer generation |
+| `gemini-embedding-001` | Document and query embeddings |
+| Gemini LLM | Context-based answer generation |
+| ChromaDB | Vector database |
+| PyMuPDF | PDF text extraction |
+| RAG | Retrieval-Augmented Generation |
+| Git \& GitHub | Version control and source management |
 
-## ⚙️ How It Works
+---
 
-1. Upload a PDF or TXT document.
-2. The application extracts the document's text.
-3. The text is divided into smaller chunks.
-4. Ollama generates embeddings for the chunks.
-5. ChromaDB stores the chunks and their embeddings.
-6. Enter a question about your document.
-7. The application retrieves relevant chunks using semantic search.
-8. The LLM generates an answer using the retrieved context.
-9. Source filenames and page references are displayed where available.
+# 🧠 How the Project Works
 
-## 🧠 RAG Architecture
+The project follows a **Retrieval-Augmented Generation (RAG)** architecture.
 
-```text
-PDF / TXT Upload
-       |
-       v
- Text Extraction
-       |
-       v
-  Text Chunking
-       |
-       v
- Embedding Model
- (Nomic Embed Text)
-       |
-       v
-    ChromaDB
-       |
-       v
-  User Question
-       |
-       v
- Question Embedding
-       |
-       v
- Semantic Retrieval
-       |
-       v
- Relevant Text Chunks
-       |
-       v
-  Ollama LLM
- (Llama 3.2 3B)
-       |
-       v
- Answer + Sources
+``` text
+                 USER
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ Streamlit UI    │
+          └────────┬────────┘
+                   │
+             Upload PDF/TXT
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ Text Extraction │
+          │    PyMuPDF      │
+          └────────┬────────┘
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ Text Chunking   │
+          └────────┬────────┘
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ Gemini Embedding│
+          │     Model       │
+          └────────┬────────┘
+                   │
+                   ▼
+          ┌─────────────────┐
+          │    ChromaDB     │
+          │  Vector Store   │
+          └─────────────────┘
+
+
+             USER QUESTION
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ Gemini Query    │
+          │   Embedding     │
+          └────────┬────────┘
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ ChromaDB Search │
+          └────────┬────────┘
+                   │
+          Relevant Chunks
+                   │
+                   ▼
+          ┌─────────────────┐
+          │ Context + Query │
+          └────────┬────────┘
+                   │
+                   ▼
+          ┌─────────────────┐
+          │   Gemini LLM    │
+          └────────┬────────┘
+                   │
+                   ▼
+              FINAL ANSWER
+                   +
+             SOURCE REFERENCES
 ```
 
-## 📂 Project Structure
+---
 
-```text
+# 🔄 RAG Workflow
+
+## 1\. Document Upload
+
+The user uploads a PDF or TXT document through the Streamlit interface.
+
+## 2\. Text Extraction
+
+For PDF files, **PyMuPDF** extracts the text page by page.
+
+For TXT files, the application reads the text directly.
+
+## 3\. Text Chunking
+
+Large documents are divided into smaller chunks.
+
+The current implementation uses:
+
+``` text
+Chunk size: 1000 characters
+Overlap: 150 characters
+```
+
+The overlap helps preserve context between neighboring chunks.
+
+## 4\. Generate Embeddings
+
+Each document chunk is converted into a numerical vector using:
+
+``` text
+gemini-embedding-001
+```
+
+These embeddings represent the semantic meaning of the text.
+
+## 5\. Store in ChromaDB
+
+The generated embeddings, document text, and metadata are stored in **ChromaDB**.
+
+Metadata includes:
+
+- Source filename
+- Page number
+- Chat/session ID
+
+## 6\. User Asks a Question
+
+The user's question is converted into an embedding using the Gemini embedding model.
+
+## 7\. Retrieve Relevant Information
+
+ChromaDB compares the question embedding with the stored document embeddings and retrieves the most relevant chunks.
+
+The application retrieves the top relevant passages for the question.
+
+## 8\. Generate the Answer
+
+The retrieved document context and user's question are sent to Gemini.
+
+The prompt instructs the model to:
+
+- Use only the supplied document context
+- Avoid inventing information
+- Clearly state when the answer is not found
+- Use simple English
+
+## 9\. Display Sources
+
+The application displays the source filename and page numbers associated with the retrieved passages.
+
+---
+
+# 📂 Project Structure
+
+``` text
 enterprise-knowledge-copilot/
 │
 ├── app.py
+│
 ├── rag.py
+│
 ├── requirements.txt
+│
 ├── README.md
+│
 ├── .gitignore
-└── chroma_db/        # Local vector database, if created
+│
+└── chroma_db/
 ```
 
-The local `chroma_db/` directory should generally be excluded from Git because it contains generated application data.
+### `app.py`
 
-## 💻 Installation and Setup
+Handles the Streamlit user interface, including:
 
-### 1. Clone the repository
+- Page configuration
+- Document upload
+- Chunk preview
+- Index Documents button
+- Chat interface
+- Chat history
+- New Chat functionality
+- Source references
 
-```bash
+### `rag.py`
+
+Contains the core RAG functionality:
+
+- PDF/TXT text extraction
+- Text chunking
+- Gemini embeddings
+- ChromaDB storage
+- Similarity search
+- Gemini answer generation
+
+### `requirements.txt`
+
+Contains the Python dependencies required to run the project.
+
+---
+
+# ⚙️ Installation
+
+## 1\. Clone the repository
+
+``` bash
 git clone https://github.com/sushmitakundarnad/enterprise-knowledge-copilot.git
+```
+
+Move into the project directory:
+
+``` bash
 cd enterprise-knowledge-copilot
 ```
 
-### 2. Create a virtual environment
+## 2\. Create a virtual environment
 
-```bash
+### Windows
+
+``` bash
 python -m venv .venv
 ```
 
-Activate it on Windows:
+Activate it:
 
-```bash
+``` bash
 .venv\Scripts\activate
 ```
 
-### 3. Install dependencies
+### macOS/Linux
 
-```bash
+``` bash
+python3 -m venv .venv
+```
+
+``` bash
+source .venv/bin/activate
+```
+
+## 3\. Install dependencies
+
+``` bash
 pip install -r requirements.txt
 ```
 
-If required, your `requirements.txt` should include:
+---
 
-```text
-streamlit
-chromadb
-pymupdf
-ollama
+# 🔑 Gemini API Configuration
+
+This project uses the **Gemini API** instead of relying on a locally running Ollama server.
+
+Create a Gemini API key through Google AI Studio.
+
+Do not hard-code the API key inside the Python source code.
+
+For local development, create:
+
+``` text
+.streamlit/
+└── secrets.toml
 ```
 
-### 4. Install and start Ollama
+Add:
 
-Install Ollama from [ollama.com](https://ollama.com/).
-
-Download the required models:
-
-```bash
-ollama pull llama3.2:3b
-ollama pull nomic-embed-text
+``` toml
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
 ```
 
-Make sure the Ollama service is running on the computer that runs the application.
+For Streamlit Cloud deployment, add the same secret through the application's **Secrets** settings.
 
-### 5. Run the application
+### ⚠️ Security
 
-```bash
+Never commit your API key to GitHub.
+
+Add your secrets file to `.gitignore`:
+
+``` text
+.streamlit/secrets.toml
+```
+
+---
+
+# ▶️ Run the Application
+
+Start the application with:
+
+``` bash
 streamlit run app.py
 ```
 
-Streamlit will provide a local URL, usually:
+The application will open in your browser.
 
-```text
-http://localhost:8501
+---
+
+# 💬 Example Usage
+
+### Step 1
+
+Upload a PDF document.
+
+### Step 2
+
+Click:
+
+``` text
+Index Documents
 ```
 
-Open that URL in your browser.
+### Step 3
 
-## 📖 How to Use
+Wait for the document to be indexed.
 
-1. Open the application.
-2. Expand **Upload Documents**.
-3. Upload one or more PDF or TXT files.
-4. Review the estimated text chunk count.
-5. Click **Index Documents** and wait for the result.
-6. Enter a question in the chat box.
-7. Review the answer and expand **View Sources** to inspect source filenames and page references.
+Example:
 
-## 🔐 Privacy and Limitations
+``` text
+Document indexed successfully.
+Chunks created: 3
+```
 
-* With a local setup, model inference and embedding generation are handled by Ollama on the machine running the application.
-* Uploaded document text is processed for retrieval and answer generation.
-* Scanned PDFs without a readable text layer may require OCR.
-* Answers depend on the quality of extracted text and retrieved chunks.
-* The current version uses a local ChromaDB database.
-* **Deployment consideration:** Streamlit Community Cloud cannot access Ollama running only on your personal computer. Cloud indexing and question answering require Ollama to be hosted somewhere the deployed app can reach, or an alternative hosted model service.
+### Step 4
 
-## 🔮 Future Improvements
+Ask a question:
 
-* Support for DOCX documents.
-* OCR for scanned PDFs.
-* Conversation history and persistent user sessions.
-* Improved retrieval and answer evaluation.
-* More detailed source citations.
-* Authentication and multi-user document management.
+``` text
+What is this document about?
+```
 
-## 👩‍💻 Author
+### Step 5
+
+The application:
+
+``` text
+Question
+   ↓
+Question Embedding
+   ↓
+ChromaDB Similarity Search
+   ↓
+Relevant Document Chunks
+   ↓
+Gemini
+   ↓
+Answer + Sources
+```
+
+---
+
+# 🎯 Why RAG?
+
+A normal LLM does not automatically know the contents of a private document uploaded by the user.
+
+RAG allows the application to:
+
+1. Retrieve relevant information from the user's documents.
+2. Add that information to the model's context.
+3. Generate an answer based on the retrieved information.
+
+This makes the application useful for document-based knowledge systems.
+
+---
+
+# 🧩 Key Concepts Demonstrated
+
+This project demonstrates practical understanding of:
+
+- Generative AI
+- Large Language Models
+- Retrieval-Augmented Generation
+- Text embeddings
+- Semantic search
+- Vector databases
+- Prompt engineering
+- Document processing
+- Context retrieval
+- AI application development
+- Streamlit deployment
+- API integration
+
+---
+
+# 📌 Limitations
+
+This project is designed as a portfolio and learning application.
+
+Current limitations include:
+
+- Supports PDF and TXT files.
+- Scanned/image-only PDFs may require OCR.
+- ChromaDB is currently used as a local vector store.
+- Gemini API usage is subject to API rate limits and quotas.
+- The application is not designed as a production enterprise database.
+- Authentication and role-based access control are not currently implemented.
+- Large-scale document processing would require additional optimization.
+
+---
+
+# 🔮 Future Enhancements
+
+Possible future improvements include:
+
+- OCR support for scanned PDFs
+- DOCX and additional document formats
+- Persistent cloud vector database
+- User authentication
+- Role-based document access
+- Improved retrieval evaluation
+- Similarity score thresholds
+- Conversation memory
+- Streaming AI responses
+- Document management dashboard
+- Production monitoring and logging
+
+---
+
+# 📚 What I Learned
+
+Through this project, I gained practical experience in building an end-to-end Generative AI application.
+
+Key learning areas include:
+
+- How RAG works
+- How document chunking affects retrieval
+- How embeddings represent text semantically
+- How vector databases support similarity search
+- How to connect an LLM to retrieved context
+- How to build AI applications using Streamlit
+- How to integrate cloud AI APIs
+- How to deploy a Generative AI application
+
+---
+
+# 👩‍💻 Author
 
 **Sushmita Kundarnad**
 
-GitHub: [sushmitakundarnad](https://github.com/sushmitakundarnad)
+Computer Science Graduate | Generative AI | Python | AI Applications
+
+GitHub:  
+https://github.com/sushmitakundarnad
+
+---
+
+# ⭐ Project
+
+If you find this project useful, consider giving the repository a ⭐ on GitHub.
