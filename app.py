@@ -320,6 +320,6 @@ if question:
 
 st.markdown("""
 <div class="footer">
-    Powered by Python · Streamlit · Ollama · ChromaDB · RAG
+    Powered by Python · Streamlit · Gemini API · ChromaDB · RAG
 </div>
 """, unsafe_allow_html=True)
